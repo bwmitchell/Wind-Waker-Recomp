@@ -9,17 +9,36 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Ninja & Dependencies
         run: |
           brew install ninja cmake
           
-          # Set up RecompCore and DolRecomp in ref/
+          # Fetch pinned dependencies if missing
           mkdir -p ref
-          git clone --depth 1 https://github.com/ExpansionPak/RecompCore.git ref/recompcore
-          git clone --depth 1 https://github.com/ExpansionPak/DolRecomp.git ref/dolrecomp
+          if [ ! -d "ref/recompcore" ]; then
+            git clone https://github.com/ExpansionPak/RecompCore.git ref/recompcore
+          fi
+          if [ ! -d "ref/dolrecomp" ]; then
+            git clone https://github.com/ExpansionPak/DolRecomp.git ref/dolrecomp
+          fi
 
-          # Set up Dawn iOS WebGPU runtime
+          # Apply required RecompCore patches 0056-0065 if patches directory exists
+          if [ -d "patches" ]; then
+            cd ref/recompcore
+            for patch in ../../patches/005[6-9]*.patch ../../patches/006[0-5]*.patch; do
+              if [ -f "$patch" ]; then
+                git apply "$patch" || true
+              fi
+            done
+            cd ../..
+          elif [ -f "scripts/setup_deps.sh" ]; then
+            chmod +x scripts/setup_deps.sh && ./scripts/setup_deps.sh
+          fi
+
+          # Download Dawn iOS WebGPU runtime
           mkdir -p build/ios-deps && cd build/ios-deps
           curl -LO https://github.com/encounter/dawn/releases/download/v20260618.032059/dawn-ios-arm64.tar.gz
           mkdir dawn-ios && tar xzf dawn-ios-arm64.tar.gz -C dawn-ios
