@@ -9,14 +9,17 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Set up Ninja & Dependencies
         run: |
           brew install ninja cmake
+          
+          # Set up RecompCore and DolRecomp in ref/
           mkdir -p ref
-          git clone --recurse-submodules https://github.com/Mr-Wiseguy/RecompCore.git ref/recompcore
+          git clone --depth 1 https://github.com/ExpansionPak/RecompCore.git ref/recompcore
+          git clone --depth 1 https://github.com/ExpansionPak/DolRecomp.git ref/dolrecomp
+
+          # Set up Dawn iOS WebGPU runtime
           mkdir -p build/ios-deps && cd build/ios-deps
           curl -LO https://github.com/encounter/dawn/releases/download/v20260618.032059/dawn-ios-arm64.tar.gz
           mkdir dawn-ios && tar xzf dawn-ios-arm64.tar.gz -C dawn-ios
