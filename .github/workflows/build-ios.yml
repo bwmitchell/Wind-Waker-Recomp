@@ -1,0 +1,50 @@
+name: Build BlueWake iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Ninja & Dependencies
+        run: |
+          brew install ninja cmake
+          mkdir -p build/ios-deps && cd build/ios-deps
+          curl -LO https://github.com/encounter/dawn/releases/download/v20260618.032059/dawn-ios-arm64.tar.gz
+          mkdir dawn-ios && tar xzf dawn-ios-arm64.tar.gz -C dawn-ios
+
+      - name: Build BlueWake for iOS
+        run: |
+          cmake -S apple/ios -B build/ios-device -G Ninja \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DPNG_SHARED=OFF \
+            -DAURORA_DAWN_PROVIDER=system \
+            -DDawn_DIR=$PWD/build/ios-deps/dawn-ios/lib/cmake/Dawn \
+            -DAURORA_SDL3_PROVIDER=vendor \
+            -DAURORA_SDL3_LINKAGE=static \
+            -DAURORA_DAWN_LINKAGE=static
+          cmake --build build/ios-device --target BlueWake
+
+      - name: Package into IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/ios-device/BlueWake.app Payload/
+          zip -r BlueWake.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlueWake-iOS-IPA
+          path: BlueWake.ipa
